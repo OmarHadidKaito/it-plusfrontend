@@ -3,12 +3,11 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   setAddress,
   setEmail,
-  setGeolocation,
   addRecentSearch,
+  setGeolocation,
 } from "src/store/geo.slice";
 import { RootState, AppDispatch } from "src/store";
-// import axios from "axios";
-import { toast } from "react-toastify";
+import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import {
   Box,
@@ -19,26 +18,32 @@ import {
   ListItem,
   ListItemText,
 } from "@mui/material";
+import { useTranslation } from "react-i18next";
+import axios from "src/utils/api";
 
 export const GeoForm: React.FC = () => {
   const dispatch: AppDispatch = useDispatch();
+  const { t } = useTranslation();
+
   const { address, email, geolocation, recentSearches } = useSelector(
     (state: RootState) => state.geo
   );
 
   const handleSearch = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    console.log({ address });
 
-    if (!address) {
+    if (address === "") {
       toast.error("Please enter an address");
       return;
     }
 
     try {
-      const lat = 0,
-        lng = 0;
-      dispatch(setGeolocation({ lat, lng }));
+      const res = await axios.post("/geolocation", { address, email });
       dispatch(addRecentSearch({ address, email }));
+      dispatch(
+        setGeolocation({ lat: res.data.latitude, lng: res.data.longitude })
+      );
       toast.success("Geolocation retrieved successfully!");
     } catch (error) {
       toast.error("Error retrieving geolocation");
@@ -60,11 +65,11 @@ export const GeoForm: React.FC = () => {
       }}
     >
       <Typography variant="h4" component="h1" gutterBottom>
-        Geolocation Finder
+        {t("geolocation")}
       </Typography>
 
       <TextField
-        label="Address"
+        label={t("address")}
         variant="outlined"
         fullWidth
         value={address}
@@ -72,7 +77,7 @@ export const GeoForm: React.FC = () => {
       />
 
       <TextField
-        label="Email (optional)"
+        label={t("email")}
         variant="outlined"
         fullWidth
         type="email"
@@ -81,7 +86,7 @@ export const GeoForm: React.FC = () => {
       />
 
       <Button type="submit" variant="contained" color="primary">
-        Find Geolocation
+        {t("geolocation_form")}
       </Button>
 
       {geolocation && (
@@ -109,6 +114,7 @@ export const GeoForm: React.FC = () => {
           ))}
         </List>
       </Box>
+      <ToastContainer />
     </Box>
   );
 };
