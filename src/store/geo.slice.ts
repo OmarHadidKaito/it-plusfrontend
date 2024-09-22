@@ -1,4 +1,6 @@
-import { createSlice, PayloadAction } from "@reduxjs/toolkit";
+import { createSlice, PayloadAction, createAsyncThunk } from "@reduxjs/toolkit";
+
+import axios from "src/utils/api";
 
 interface Geolocation {
   lat: number;
@@ -23,6 +25,26 @@ const initialState: GeoState = {
   geolocation: null,
   recentSearches: [],
 };
+
+export const fetchGeolocation = createAsyncThunk(
+  "geo/fetchGeolocation",
+  async (
+    { address, email }: { address: string; email?: any },
+    { dispatch }
+  ) => {
+    try {
+      const res = await axios.post("/geolocation", { address, email });
+      const { latitude, longitude } = res.data;
+
+      dispatch(setGeolocation({ lat: latitude, lng: longitude }));
+      dispatch(addRecentSearch({ address, email }));
+
+      return { latitude, longitude };
+    } catch (error) {
+      throw new Error("Error retrieving geolocation");
+    }
+  }
+);
 
 const geoSlice = createSlice({
   name: "geo",

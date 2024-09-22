@@ -1,11 +1,6 @@
-import React, { FormEvent } from "react";
+import React from "react";
 import { useDispatch, useSelector } from "react-redux";
-import {
-  setAddress,
-  setEmail,
-  addRecentSearch,
-  setGeolocation,
-} from "src/store/geo.slice";
+import { setAddress, fetchGeolocation } from "src/store/geo.slice";
 import { RootState, AppDispatch } from "src/store";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -19,41 +14,47 @@ import {
   ListItemText,
 } from "@mui/material";
 import { useTranslation } from "react-i18next";
-import axios from "src/utils/api";
+import { useForm, SubmitHandler } from "react-hook-form";
+
+const emailRegex =
+  /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]{2,})+$/;
+
+interface GeoFormInputs {
+  address: string;
+  email: string;
+}
 
 export const GeoForm: React.FC = () => {
   const dispatch: AppDispatch = useDispatch();
   const { t } = useTranslation();
 
-  const { address, email, geolocation, recentSearches } = useSelector(
+  const { geolocation, recentSearches } = useSelector(
     (state: RootState) => state.geo
   );
 
-  const handleSearch = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    console.log({ address });
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    reset,
+  } = useForm<GeoFormInputs>();
 
-    if (address === "") {
-      toast.error("Please enter an address");
-      return;
-    }
-
+  const onSubmit: SubmitHandler<GeoFormInputs> = async (data) => {
     try {
-      const res = await axios.post("/geolocation", { address, email });
-      dispatch(addRecentSearch({ address, email }));
-      dispatch(
-        setGeolocation({ lat: res.data.latitude, lng: res.data.longitude })
+      await dispatch(
+        fetchGeolocation({ address: data.address, email: data.email })
       );
-      toast.success("Geolocation retrieved successfully!");
+      toast.success(t("geolocation_success"));
+      reset();
     } catch (error) {
-      toast.error("Error retrieving geolocation");
+      toast.error(t("geolocation_error"));
     }
   };
 
   return (
     <Box
       component="form"
-      onSubmit={handleSearch}
+      onSubmit={handleSubmit(onSubmit)}
       sx={{
         display: "flex",
         flexDirection: "column",
@@ -72,8 +73,9 @@ export const GeoForm: React.FC = () => {
         label={t("address")}
         variant="outlined"
         fullWidth
-        value={address}
-        onChange={(e) => dispatch(setAddress(e.target.value))}
+        error={!!errors.address}
+        helperText={errors.address ? t("address_required") : ""}
+        {...register("address", { required: t("address_required") })}
       />
 
       <TextField
@@ -81,8 +83,14 @@ export const GeoForm: React.FC = () => {
         variant="outlined"
         fullWidth
         type="email"
-        value={email}
-        onChange={(e) => dispatch(setEmail(e.target.value))}
+        error={!!errors.email}
+        helperText={errors.email ? t("invalid_email") : ""}
+        {...register("email", {
+          pattern: {
+            value: emailRegex,
+            message: t("invalid_email"),
+          },
+        })}
       />
 
       <Button type="submit" variant="contained" color="primary">
@@ -92,7 +100,7 @@ export const GeoForm: React.FC = () => {
       {geolocation && (
         <Box mt={4}>
           <Typography variant="h6" component="h3">
-            Geolocation Results:
+            {t("geolocation_results")}
           </Typography>
           <Typography>Latitude: {geolocation.lat}</Typography>
           <Typography>Longitude: {geolocation.lng}</Typography>
@@ -101,7 +109,7 @@ export const GeoForm: React.FC = () => {
 
       <Box mt={4}>
         <Typography variant="h6" component="h3">
-          Recent Searches
+          {t("recent_searches")}
         </Typography>
         <List>
           {recentSearches.map((search: any, index: number) => (
